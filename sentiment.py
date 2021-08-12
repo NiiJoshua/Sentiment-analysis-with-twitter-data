@@ -47,3 +47,75 @@ def stream(data, file_name):
 df.head()
 
 # Working the sentiment Analysis part
+import re
+from textblob import TextBlob
+from wordcloud import WordCloud, STOPWORDS
+import chart_studio
+import plotly.graph_objs as go
+from plotly.offline import iplot
+import cufflinks
+cufflinks.go_offline()
+cufflinks.set_config_file(world_readable=True, theme='pearl', offline=True)
+
+# Using regular expression
+def clean_tweet(tweet):
+    return ' '.join(re.sub('(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)', ' ', tweet).split())
+
+# Function for the sentiment analysis
+def analyze_sentiment(tweet):
+    analysis = TextBlob(tweet)
+    if analysis.sentiment.polarity > 0:
+        return 'Positive'
+    elif analysis.sentiment.polarity ==0:
+        return 'Neutral'
+    else:
+        return 'Negative'
+
+# using the regular expression function
+df['clean_tweet'] = df['Tweets'].apply(lambda x: clean_tweet(x))
+df['Sentiment'] = df['clean_tweet'].apply(lambda x: analyze_sentiment(x))
+
+n=100
+print('Original tweet:\n'+ df['Tweets'][n])
+print()
+print('Clean tweet:\n'+df['clean_tweet'][n])
+print()
+print('Sentiment:\n'+df['Sentiment'][n])
+
+n=20
+print('Original tweet:\n'+ df['Tweets'][n])
+print()
+print('Clean tweet:\n'+df['clean_tweet'][n])
+print()
+print('Sentiment:\n'+df['Sentiment'][n])
+
+# Plot of the sentiments
+df['Sentiment'].value_counts().iplot(kind='bar', xTitle='Sentiment',
+                                    yTitle='Count', title='Overall Sentiment Distribution')
+
+# Plotting popular tweets
+df_unpopular = df[df['rt_count'] <= 100]
+df_unpopular['Sentiment'].value_counts().iplot(kind='bar', xTitle='Sentiment',
+                                    yTitle='Count', title = ('Sentiment Distribution for <br> unpopular tweets (between 500 to 10k)'))
+
+# Plot of statuses vs followers
+df.iplot(x='User_statuses_count', y = 'user_followers', mode='markers'
+        , categories='User_verified',layout=dict(
+        xaxis=dict(type='log', title='No. of Statuses'),
+        yaxis=dict(type='log', title='No. of followers'),
+        title='No. of statuses vs. No. of followers'))
+
+all_tweets = ' '.join(tweet for tweet in df['clean_tweet'])
+
+wordcloud = WordCloud(stopwords=STOPWORDS).generate(all_tweets)
+
+# Plotting popular words
+plt.figure(figsize = (10,10))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis("off")
+plt.show()
+
+# Frequency plot of popular words
+df_freq = pd.DataFrame.from_dict(data = wordcloud.words_, orient='index')
+df_freq = df_freq.head(20)
+df_freq.plot.bar()
